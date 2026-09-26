@@ -16,8 +16,11 @@ class CashFlow:
     amount: float  #: 当期现金流金额（末期 = 票息 + 面值）
 
 
-#: 梯子与收益率无关，同一组面值 / 每期票息 / 期数可直接复用（元素不可变，线程间共享安全）
-_LADDER_CACHE: dict[tuple[float, float, int], tuple[CashFlow, ...]] = {}
+#: 梯子与收益率无关，同一组面值 / 每期票息 / 期数 / 频率可直接复用
+#: （元素不可变，线程间共享安全）。频率必须入键：time_years = period / 频率，
+#: 漏掉它会让「每期票息与期数相同、频率不同」的两只券共用一条梯子，
+#: 后算的券继承前者的 time_years，久期随之跑偏。
+_LADDER_CACHE: dict[tuple[float, float, int, int], tuple[CashFlow, ...]] = {}
 
 
 def build_cashflow_ladder(spec: BondSpec) -> tuple[CashFlow, ...]:
@@ -27,7 +30,7 @@ def build_cashflow_ladder(spec: BondSpec) -> tuple[CashFlow, ...]:
     """
     periods = spec.periods
     coupon = spec.coupon_per_period
-    key = (spec.face_value, coupon, periods)
+    key = (spec.face_value, coupon, periods, spec.frequency)
     cached = _LADDER_CACHE.get(key)
     if cached is not None:
         return cached
