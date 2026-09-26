@@ -1,0 +1,7 @@
+services:
+  bond-pricing-service:
+    build: .
+    image: bond-pricing-service:latest
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
