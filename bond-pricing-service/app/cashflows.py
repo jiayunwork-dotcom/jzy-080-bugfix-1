@@ -16,25 +16,18 @@ class CashFlow:
     amount: float  #: 当期现金流金额（末期 = 票息 + 面值）
 
 
-#: 梯子与收益率无关，同一组面值 / 每期票息 / 期数可直接复用（元素不可变，线程间共享安全）
-_LADDER_CACHE: dict[tuple[float, float, int], tuple[CashFlow, ...]] = {}
-
-
 def build_cashflow_ladder(spec: BondSpec) -> tuple[CashFlow, ...]:
     """构建标准固定利率附息债的现金流梯子。
 
     每期支付票息 = 面值 × 年化票息率 / 频率；末期在票息之外同时偿还面值。
+
+    纯函数：梯子只取决于 ``spec`` 自身，每次调用现场重建，不缓存、不共享——
+    任何一只券的结果都与服务此前算过什么、以什么顺序算无关。
     """
-    periods = spec.periods
-    coupon = spec.coupon_per_period
-    key = (spec.face_value, coupon, periods)
-    cached = _LADDER_CACHE.get(key)
-    if cached is not None:
-        return cached
     ladder = []
-    for period in range(1, periods + 1):
-        amount = coupon
-        if period == periods:
+    for period in range(1, spec.periods + 1):
+        amount = spec.coupon_per_period
+        if period == spec.periods:
             amount += spec.face_value
         ladder.append(
             CashFlow(
@@ -43,6 +36,4 @@ def build_cashflow_ladder(spec: BondSpec) -> tuple[CashFlow, ...]:
                 amount=amount,
             )
         )
-    result = tuple(ladder)
-    _LADDER_CACHE[key] = result
-    return result
+    return tuple(ladder)
